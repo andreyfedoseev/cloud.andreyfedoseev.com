@@ -1,0 +1,91 @@
+version: '3'
+
+services:
+  db:
+    image: mariadb
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    restart: always
+    volumes:
+      - /srv/nextcloud/db:/var/lib/mysql
+    env_file:
+      - app/.env
+
+  redis:
+    image: redis
+    restart: always
+
+  app:
+    build: ./app
+    restart: always
+    volumes:
+      - /srv/nextcloud/nextcloud:/var/www/html
+      - /srv/files/nextcloud:/var/www/html/data
+    environment:
+      - VIRTUAL_HOST=andreyfedoseev-dm.ddns.net
+      - LETSENCRYPT_HOST=andreyfedoseev-dm.ddns.net
+      - LETSENCRYPT_EMAIL=andrey.fedoseev@gmail.com
+      - MYSQL_HOST=db
+    env_file:
+      - app/.env
+    depends_on:
+      - db
+      - redis
+    networks:
+      - proxy-tier
+      - default
+
+  cron:
+    build: ./app
+    restart: always
+    volumes:
+      - /srv/nextcloud/nextcloud:/var/www/html
+      - /srv/files/nextcloud:/var/www/html/data
+    entrypoint: /cron.sh
+    depends_on:
+      - db
+      - redis
+
+  proxy:
+    build: ./proxy
+    restart: always
+    ports:
+      - 80:80
+      - 443:443
+    labels:
+      com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy: "true"
+    volumes:
+      - /srv/nextcloud/certs:/etc/nginx/certs:ro
+      - /srv/nextcloud/vhost.d:/etc/nginx/vhost.d
+      - /srv/nextcloud/html:/usr/share/nginx/html
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    networks:
+      - proxy-tier
+
+  letsencrypt-companion:
+    image: jrcs/letsencrypt-nginx-proxy-companion
+    restart: always
+    volumes:
+      - /srv/nextcloud/certs:/etc/nginx/certs
+      - /srv/nextcloud/vhost.d:/etc/nginx/vhost.d
+      - /srv/nextcloud/html:/usr/share/nginx/html
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - proxy-tier
+    depends_on:
+      - proxy
+
+  backup:
+    build: ./backup
+    restart: always
+    volumes:
+      - /srv/files/nextcloud:/data/files:ro
+      - /srv/nextcloud/nextcloud:/data/nextcloud:ro
+      - backup-cache:/cache
+    env_file:
+      - backup/.env
+
+networks:
+  proxy-tier:
+
+volumes:
+  backup-cache:
