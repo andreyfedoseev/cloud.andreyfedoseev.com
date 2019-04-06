@@ -21,9 +21,7 @@ services:
       - /srv/nextcloud/nextcloud:/var/www/html
       - /srv/files/nextcloud:/var/www/html/data
     environment:
-      - VIRTUAL_HOST=andreyfedoseev-dm.ddns.net
-      - LETSENCRYPT_HOST=andreyfedoseev-dm.ddns.net
-      - LETSENCRYPT_EMAIL=andrey.fedoseev@gmail.com
+      - VIRTUAL_HOST=cloud.andreyfedoseev.com
       - MYSQL_HOST=db
     env_file:
       - app/.env
@@ -31,8 +29,14 @@ services:
       - db
       - redis
     networks:
-      - proxy-tier
+      - web
       - default
+    labels:
+      - "traefik.docker.network=web"
+      - "traefik.enable=true"
+      - "traefik.basic.frontend.rule=Host:cloud.andreyfedoseev.com"
+      - "traefik.basic.port=80"
+      - "traefik.basic.protocol=http"
 
   cron:
     build: ./app
@@ -45,35 +49,6 @@ services:
       - db
       - redis
 
-  proxy:
-    build: ./proxy
-    restart: always
-    ports:
-      - 80:80
-      - 443:443
-    labels:
-      com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy: "true"
-    volumes:
-      - /srv/nextcloud/certs:/etc/nginx/certs:ro
-      - /srv/nextcloud/vhost.d:/etc/nginx/vhost.d
-      - /srv/nextcloud/html:/usr/share/nginx/html
-      - /var/run/docker.sock:/tmp/docker.sock:ro
-    networks:
-      - proxy-tier
-
-  letsencrypt-companion:
-    image: jrcs/letsencrypt-nginx-proxy-companion
-    restart: always
-    volumes:
-      - /srv/nextcloud/certs:/etc/nginx/certs
-      - /srv/nextcloud/vhost.d:/etc/nginx/vhost.d
-      - /srv/nextcloud/html:/usr/share/nginx/html
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - proxy-tier
-    depends_on:
-      - proxy
-
   backup:
     build: ./backup
     restart: always
@@ -85,7 +60,8 @@ services:
       - backup/.env
 
 networks:
-  proxy-tier:
+  web:
+    external: true
 
 volumes:
   backup-cache:
