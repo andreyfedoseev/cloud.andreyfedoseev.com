@@ -1,24 +1,15 @@
-FROM debian:jessie
-MAINTAINER Ilya Stepanov <dev@ilyastepanov.com>
+FROM restic/restic:0.9.4
 
-RUN apt-get update && \
-    apt-get install -y python python-pip cron && \
-    rm -rf /var/lib/apt/lists/*
+RUN apk update && \
+  apk add bash && \
+  rm -rf /var/cache/apk/*
 
-RUN pip install s3cmd
+ADD entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-ADD s3cfg /root/.s3cfg
+ADD cron.sh /cron.sh
+RUN chmod +x /cron.sh
+ADD tasks.cron /tasks.cron
 
-ADD start.sh /start.sh
-RUN chmod +x /start.sh
-
-ADD sync.sh /sync.sh
-RUN chmod +x /sync.sh
-
-ADD get.sh /get.sh
-RUN chmod +x /get.sh
-
-ADD exclude /exclude
-
-ENTRYPOINT ["/start.sh"]
-CMD [""]
+ENTRYPOINT ["/entrypoint.sh"]
+CMD []

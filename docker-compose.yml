@@ -50,12 +50,15 @@ services:
       - redis
 
   backup:
-    build: ./backup
+    build: backup
     restart: always
+    hostname: nextcloud-backup
     volumes:
       - /srv/files/nextcloud:/data/files:ro
       - /srv/nextcloud/nextcloud:/data/nextcloud:ro
-      - backup-cache:/cache
+      - /srv/restored/:/restored/
+      - backup-cache:/root/.cache/restic
+    command: cron
     env_file:
       - backup/.env
 

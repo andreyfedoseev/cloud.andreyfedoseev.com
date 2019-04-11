@@ -1,0 +1,2 @@
+0 2 * * * restic backup /data/
+0 6 * * 0 restic forget --prune -l 30
